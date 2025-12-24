@@ -65,6 +65,12 @@ type ChannelInfo struct {
 	MultiKeyDisabledTime   map[int]int64         `json:"multi_key_disabled_time,omitempty"`   // key禁用时间列表，key index -> time
 	MultiKeyPollingIndex   int                   `json:"multi_key_polling_index"`             // 多Key模式下轮询的key索引
 	MultiKeyMode           constant.MultiKeyMode `json:"multi_key_mode"`
+
+	// 定时重置配置
+	AutoResetMultiKeysEnabled bool   `json:"auto_reset_multi_keys_enabled,omitempty"` // 是否启用定时重置
+	AutoResetMultiKeysTime    string `json:"auto_reset_multi_keys_time,omitempty"`    // 重置时间，格式 "HH:mm"，如 "03:00"
+	AutoResetOnlyAutoDisabled bool   `json:"auto_reset_only_auto_disabled,omitempty"` // 是否只重置自动禁用的密钥
+	LastAutoResetDate         string `json:"last_auto_reset_date,omitempty"`          // 上次重置日期，格式 "2006-01-02"
 }
 
 // Value implements driver.Valuer interface
@@ -1005,4 +1011,47 @@ func CountChannelsGroupByType() (map[int64]int64, error) {
 		counts[r.Type] = r.Count
 	}
 	return counts, nil
+}
+
+// ResetDisabledMultiKeys 重置禁用的多密钥
+// onlyAuto: true 只重置自动禁用的密钥(status=3)，false 重置所有禁用密钥(status=2,3)
+func (channel *Channel) ResetDisabledMultiKeys(onlyAuto bool) (int, error) {
+	if !channel.ChannelInfo.IsMultiKey {
+		return 0, nil
+	}
+
+	lock := GetChannelPollingLock(channel.Id)
+	lock.Lock()
+	defer lock.Unlock()
+
+	resetCount := 0
+	for idx, status := range channel.ChannelInfo.MultiKeyStatusList {
+		shouldReset := false
+		if onlyAuto && status == common.ChannelStatusAutoDisabled {
+			shouldReset = true
+		} else if !onlyAuto && status != common.ChannelStatusEnabled {
+			shouldReset = true
+		}
+
+		if shouldReset {
+			delete(channel.ChannelInfo.MultiKeyStatusList, idx)
+			delete(channel.ChannelInfo.MultiKeyDisabledReason, idx)
+			delete(channel.ChannelInfo.MultiKeyDisabledTime, idx)
+			resetCount++
+		}
+	}
+
+	if resetCount > 0 {
+		// 如果通道因所有密钥禁用而被自动禁用，恢复通道状态
+		if channel.Status == common.ChannelStatusAutoDisabled {
+			channel.Status = common.ChannelStatusEnabled
+		}
+
+		err := channel.SaveWithoutKey()
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return resetCount, nil
 }

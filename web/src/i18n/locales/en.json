@@ -2182,6 +2182,14 @@
     "默认补全倍率": "Default completion ratio",
     "跨分组重试": "Cross-group retry",
     "跨分组": "Cross-group",
-    "开启后，当前分组渠道失败时会按顺序尝试下一个分组的渠道": "After enabling, when the current group channel fails, it will try the next group's channel in order"
+    "开启后，当前分组渠道失败时会按顺序尝试下一个分组的渠道": "After enabling, when the current group channel fails, it will try the next group's channel in order",
+    "定时重置配置": "Auto Reset Config",
+    "启用定时重置": "Enable Auto Reset",
+    "重置时间": "Reset Time",
+    "仅重置自动禁用": "Only Auto-disabled",
+    "上次重置": "Last Reset",
+    "保存配置": "Save Config",
+    "定时重置配置已保存": "Auto reset config saved",
+    "保存配置失败": "Failed to save config"
   }
 }

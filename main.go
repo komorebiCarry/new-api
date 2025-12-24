@@ -102,6 +102,8 @@ func main() {
 
 	go controller.AutomaticallyTestChannels()
 
+	go controller.AutomaticallyResetMultiKeys()
+
 	if common.IsMasterNode && constant.UpdateTask {
 		gopool.Go(func() {
 			controller.UpdateMidjourneyTaskBulk()

@@ -1159,6 +1159,11 @@ type MultiKeyManageRequest struct {
 	Page      int    `json:"page,omitempty"`      // for get_key_status pagination
 	PageSize  int    `json:"page_size,omitempty"` // for get_key_status pagination
 	Status    *int   `json:"status,omitempty"`    // for get_key_status filtering: 1=enabled, 2=manual_disabled, 3=auto_disabled, nil=all
+
+	// 定时重置配置字段
+	AutoResetEnabled  *bool   `json:"auto_reset_enabled"`
+	AutoResetTime     *string `json:"auto_reset_time"`
+	AutoResetOnlyAuto *bool   `json:"auto_reset_only_auto"`
 }
 
 // MultiKeyStatusResponse represents the response for key status query
@@ -1629,6 +1634,44 @@ func ManageMultiKeys(c *gin.Context) {
 			"success": true,
 			"message": fmt.Sprintf("已删除 %d 个自动禁用的密钥", deletedCount),
 			"data":    deletedCount,
+		})
+		return
+
+	case "get_auto_reset_config":
+		// 获取定时重置配置
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"auto_reset_enabled":   channel.ChannelInfo.AutoResetMultiKeysEnabled,
+				"auto_reset_time":      channel.ChannelInfo.AutoResetMultiKeysTime,
+				"auto_reset_only_auto": channel.ChannelInfo.AutoResetOnlyAutoDisabled,
+				"last_reset_date":      channel.ChannelInfo.LastAutoResetDate,
+			},
+		})
+		return
+
+	case "update_auto_reset_config":
+		// 更新定时重置配置
+		if request.AutoResetEnabled != nil {
+			channel.ChannelInfo.AutoResetMultiKeysEnabled = *request.AutoResetEnabled
+		}
+		if request.AutoResetTime != nil {
+			channel.ChannelInfo.AutoResetMultiKeysTime = *request.AutoResetTime
+		}
+		if request.AutoResetOnlyAuto != nil {
+			channel.ChannelInfo.AutoResetOnlyAutoDisabled = *request.AutoResetOnlyAuto
+		}
+
+		err = channel.Update()
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+
+		model.InitChannelCache()
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "定时重置配置已更新",
 		})
 		return
 
